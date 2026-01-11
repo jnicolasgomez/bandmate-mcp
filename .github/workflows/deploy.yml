@@ -14,24 +14,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Google Auth
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Setup GCP credentials
+        run: |
+          echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > /tmp/gcp-key.json
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
+
+      - name: Authenticate with gcloud
+        run: |
+          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+          gcloud config set project ${{ env.PROJECT_ID }}
 
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
@@ -49,6 +48,10 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars "BANDMATE_API_URL=https://vertigox.ue.r.appspot.com/api"
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f /tmp/gcp-key.json
 
       - name: Show Service URL
         run: |
