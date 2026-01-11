@@ -203,6 +203,36 @@ docker run -p 8080:8080 \
 curl http://localhost:8080/health
 ```
 
+## CI/CD with GitHub Actions
+
+The repository includes automatic deployment to Cloud Run on every push to `main`.
+
+### Setup
+
+1. Create a GCP Service Account with the following roles:
+   - Cloud Run Admin
+   - Cloud Build Editor
+   - Storage Admin
+   - Service Account User
+
+2. Create a JSON key for the service account:
+   ```bash
+   gcloud iam service-accounts keys create key.json \
+     --iam-account=YOUR_SA@YOUR_PROJECT.iam.gserviceaccount.com
+   ```
+
+3. Add the secret to GitHub:
+   - Go to your repo → Settings → Secrets and variables → Actions
+   - Create a new secret named `GCP_SA_KEY`
+   - Paste the contents of `key.json`
+
+4. Delete the local key file:
+   ```bash
+   rm key.json
+   ```
+
+Now every push to `main` will automatically deploy to Cloud Run.
+
 ## License
 
 MIT
