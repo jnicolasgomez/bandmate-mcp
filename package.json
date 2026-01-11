@@ -1,0 +1,31 @@
+{
+  "name": "bandmate-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Bandmate REST API - Music and chord management",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "bandmate-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
