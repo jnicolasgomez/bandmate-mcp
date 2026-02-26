@@ -116,6 +116,22 @@ server.registerTool(
 );
 
 server.registerTool(
+  "get_songs_by_artist",
+  {
+    description: "Get all songs by a specific artist",
+    inputSchema: {
+      artist: z.string().describe("The artist name to fetch songs for"),
+    },
+  },
+  async ({ artist }) => {
+    const result = await apiRequest(`/songs/artist/${encodeURIComponent(artist)}`);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+server.registerTool(
   "get_songs_in_list",
   {
     description: "Get all songs contained in a specific list",
