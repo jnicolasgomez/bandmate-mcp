@@ -2,6 +2,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import { z } from "zod";
@@ -305,8 +306,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Store active transports for session management
-const transports = new Map<string, SSEServerTransport>();
+// Store active transports for session management (Streamable HTTP)
+const streamableTransports = new Map<string, StreamableHTTPServerTransport>();
+// Store active transports for legacy SSE connections
+const sseTransports = new Map<string, SSEServerTransport>();
 
 // Health check endpoint for Cloud Run
 app.get("/health", (_req: Request, res: Response) => {
@@ -321,32 +324,63 @@ app.get("/", (_req: Request, res: Response) => {
     description: "MCP server for Bandmate REST API",
     endpoints: {
       health: "/health",
-      sse: "/sse",
-      messages: "/messages",
+      mcp: "/mcp",
+      sse: "/sse (legacy)",
+      messages: "/messages (legacy)",
     },
   });
 });
 
-// SSE endpoint for MCP connection
+// Streamable HTTP endpoint (new MCP standard)
+app.all("/mcp", async (req: Request, res: Response) => {
+  const sessionId = req.headers["mcp-session-id"] as string | undefined;
+
+  let transport: StreamableHTTPServerTransport;
+
+  if (sessionId && streamableTransports.has(sessionId)) {
+    transport = streamableTransports.get(sessionId)!;
+  } else if (!sessionId && req.method === "POST") {
+    transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => crypto.randomUUID(),
+      onsessioninitialized: (newSessionId) => {
+        streamableTransports.set(newSessionId, transport);
+      },
+    });
+
+    transport.onclose = () => {
+      if (transport.sessionId) {
+        streamableTransports.delete(transport.sessionId);
+      }
+    };
+
+    await server.connect(transport);
+  } else {
+    res.status(400).json({ error: "Bad Request: missing session ID or not an initialization request" });
+    return;
+  }
+
+  await transport.handleRequest(req, res, req.body);
+});
+
+// Legacy SSE endpoint (for backward compatibility)
 app.get("/sse", async (req: Request, res: Response) => {
-  console.log("New SSE connection established");
+  console.log("New legacy SSE connection established");
 
   const transport = new SSEServerTransport("/messages", res);
   const sessionId = crypto.randomUUID();
-  transports.set(sessionId, transport);
+  sseTransports.set(sessionId, transport);
 
   res.on("close", () => {
-    console.log(`SSE connection closed: ${sessionId}`);
-    transports.delete(sessionId);
+    sseTransports.delete(sessionId);
   });
 
   await server.connect(transport);
 });
 
-// Messages endpoint for client-to-server communication
+// Legacy messages endpoint (for backward compatibility)
 app.post("/messages", async (req: Request, res: Response) => {
   const sessionId = req.query.sessionId as string;
-  const transport = transports.get(sessionId);
+  const transport = sseTransports.get(sessionId);
 
   if (!transport) {
     res.status(400).json({ error: "No active session. Connect to /sse first." });
@@ -360,5 +394,6 @@ app.post("/messages", async (req: Request, res: Response) => {
 app.listen(PORT, () => {
   console.log(`Bandmate MCP server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`SSE endpoint: http://localhost:${PORT}/sse`);
+  console.log(`MCP endpoint (Streamable HTTP): http://localhost:${PORT}/mcp`);
+  console.log(`MCP endpoint (legacy SSE): http://localhost:${PORT}/sse`);
 });
