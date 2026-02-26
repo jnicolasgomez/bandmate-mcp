@@ -233,6 +233,36 @@ server.tool(
   }
 );
 
+// ============ ARTIST TOOLS ============
+
+// Get all artists
+server.tool(
+  "get_artists",
+  "Get all artists from Bandmate.",
+  {},
+  async () => {
+    const result = await apiRequest("/artists");
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+// Create or update an artist
+server.tool(
+  "upsert_artist",
+  "Create a new artist or update an existing one. The artist ID is derived from the name (lowercased and trimmed), so upserting with the same name is idempotent.",
+  {
+    name: z.string().describe("The artist display name"),
+  },
+  async ({ name }) => {
+    const result = await apiRequest("/artists", "POST", { name });
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
 // ============ UTILITY TOOLS ============
 
 // Search songs by text (searches in titles and tags)
