@@ -229,6 +229,65 @@ server.registerTool(
 );
 
 server.registerTool(
+  "add_song_to_list",
+  {
+    description: "Add a song to an existing list. Requires authentication.",
+    inputSchema: {
+      listId: z.string().describe("The list ID to add the song to"),
+      songId: z.string().describe("The song ID to add to the list"),
+    },
+  },
+  async ({ listId, songId }) => {
+    const result = await apiRequest(`/lists/${listId}/songs`, "POST", { songId }, true);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+server.registerTool(
+  "update_song",
+  {
+    description: "Update specific fields of an existing song by ID. Only provided fields are updated. Requires authentication.",
+    inputSchema: {
+      id: z.string().describe("The song ID to update"),
+      title: z.string().optional().describe("The song title"),
+      chordsText: z.string().optional().describe("The chord notation and lyrics"),
+      isPublic: z.boolean().optional().describe("Whether the song is publicly visible"),
+      bpm: z.number().optional().describe("Beats per minute"),
+      key: z.string().optional().describe("Musical key (e.g., 'C', 'Am', 'G#')"),
+      voice: z.string().optional().describe("Vocal range or type"),
+      tags: z.array(z.string()).optional().describe("Searchable tags for the song"),
+      spotifyUrl: z.string().optional().describe("Spotify link to the song"),
+      youtubeUrl: z.string().optional().describe("YouTube link to the song"),
+    },
+  },
+  async ({ id, title, chordsText, isPublic, bpm, key, voice, tags, spotifyUrl, youtubeUrl }) => {
+    const songData: Record<string, unknown> = {};
+
+    if (title !== undefined) songData.title = title;
+    if (chordsText !== undefined) songData["chords-text"] = chordsText;
+    if (isPublic !== undefined) songData.public = isPublic;
+    if (tags !== undefined) songData.tags = tags;
+    if (spotifyUrl !== undefined) songData.spotifyUrl = spotifyUrl;
+    if (youtubeUrl !== undefined) songData.youtubeUrl = youtubeUrl;
+
+    if (bpm !== undefined || key !== undefined || voice !== undefined) {
+      const details: Record<string, unknown> = {};
+      if (bpm !== undefined) details.bpm = bpm;
+      if (key !== undefined) details.key = key;
+      if (voice !== undefined) details.voice = voice;
+      songData.details = details;
+    }
+
+    const result = await apiRequest(`/songs/${id}`, "PUT", songData, true);
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+server.registerTool(
   "upsert_list",
   {
     description: "Create a new list or update an existing one. Requires authentication.",
